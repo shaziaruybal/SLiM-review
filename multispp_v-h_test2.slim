@@ -1,0 +1,179 @@
+// Test 2: Multi-species model with interaction between hosts and vectors - this simple model has two possible compartments for both hosts and vectors, either infected I or susceptible S. Transitions between states are governed by fixed parameters (arbitrary but semi-realistic transmission potential and clearance rates) and depend on population density of either infected hosts or vectors accordingly. 
+
+
+// functions to calculate proportions I/S
+function (integer$)countInfectedInSubpop(object<Subpopulation> subpop){
+	inds = subpop.individuals;
+	inds_infected = sum(inds.tag[inds.tag == I]);
+	
+	return(inds_infected);
+}
+
+function (integer$)countSusceptibleInSubpop(object<Subpopulation> subpop){
+	inds = subpop.individuals;
+	inds_susceptible = sum(inds.tag[inds.tag == S]);
+	
+	return(inds_susceptible);
+}
+
+species all initialize(){
+
+	initializeSLiMModelType("nonWF");
+	
+	// fixed population sizes
+	defineConstant("N_human", 1e5); 
+	defineConstant("N_mosquito", 5e6); 
+	defineConstant("N_inf_seed", 100); // seed for number of infected individuals
+	
+	// SI status tags
+	defineConstant("S", 0); // tag as 0 if susceptible
+	defineConstant("I", 1); // tag as 1 if infected
+	
+	// Fixed params
+	defineConstant("h_clearance", 0.05); // arbitrary rate for now (clears every 3 weeks)
+	defineConstant("v_mortality", 0.2); // beta, assume probability vector clearance rate aka mortality 20% (ie daily survival rate 0.8)
+	defineConstant("biting_rate", 0.1); // somewhat arbitrary rate, bite every 10 days
+	
+}
+
+species mosquito initialize() {
+	initializeSpecies(tickModulo=1, tickPhase=1, avatar="🦟", color = "tan3");
+	
+	// note: tags will record S/I state
+}
+
+species human initialize() {
+	initializeSpecies(tickModulo=1, tickPhase=1, avatar="🧍", color = "cornflowerblue");
+	
+	// I think this will/could record matched vector+host? .. not working as I thought	
+	// initializeSLiMOptions(keepPedigrees=T);
+	
+	// tree sequence recording didn't work because no genetics!	
+	//	initializeTreeSeq();
+	
+	// note: tags will record S/I state
+}
+
+// Here a tick = day, so biting events can occur based on transmission potential (probability of infected from human to mosquito or vice versa) on all susceptibles on a given day, and for infected clearance (ie I->S) occurs based on fixed rate
+
+ticks all 1 early() {
+	// create host and vector subpops
+	human.addSubpop("p1", N_human);
+	mosquito.addSubpop("p2", N_mosquito);
+	
+	hosts = p1.individuals;
+	vectors = p2.individuals;	
+		
+	// tag them as S for now
+	hosts.tag = S;
+	vectors.tag = S;
+	
+	h_tags = sum(hosts.tag[hosts.tag == I]);
+	v_tags = sum(vectors.tag[vectors.tag == I]);
+	
+	// sanity check Day 1 should be 0 infected
+	cat("\n ------Day 1------ \n -Number of human infections: " + h_tags + " \n -Number of mosquito infections: " + v_tags);
+	
+		// here we would want to remember founder pop, but would have to do separately?? I don't think tree sequence recording will work because of this!
+//	human.treeSeqRememberIndividuals(hosts);
+//	mosquito.treeSeqRememberIndividuals(vectors);
+
+}
+
+ticks all 1 late(){
+	// log the output (saves to Desktop by default)
+	output = community.createLogFile("multispp_v-h_test2_output.csv", logInterval=1);
+	output.addTick();
+	output.addPopulationSize(human);
+	output.addPopulationSize(mosquito);
+	output.addCustomColumn("h_infected", "countInfectedInSubpop(p1);");
+	// output.addCustomColumn("h_susceptible", "countSusceptibleInSubpop(p1);");	
+	output.addCustomColumn("v_infected", "countInfectedInSubpop(p2);");
+	// output.addCustomColumn("v_susceptible", "countSusceptibleInSubpop(p2);");
+
+}
+
+// seed infections day 50
+ticks all 50 early(){
+	 seed = p1.sampleIndividuals(N_inf_seed);
+    seed.tag = I;
+}
+
+ticks all 1:1825 late() {
+	// at each tick, Hs can be infected based on pr_m2h, Hi can clear at rate h_clearance, Vs can become infected based on trans potential, and Vi can become Vs clears based on v_mortality rate
+	
+	hosts = p1.individuals;	
+	vectors = p2.individuals;	
+	day = community.tick;
+		
+	// at each tick, record N's in each category
+	h_total = hosts.size(); // equiv to H
+	v_total = vectors.size(); // equiv to M
+	h_i_total = sum(hosts.tag[hosts.tag == I]); // equiv to x 
+	v_i_total = sum(vectors.tag[vectors.tag == I]); // equiv to z
+	h_s_total = sum(hosts.tag[hosts.tag == S]); 
+	v_s_total = sum(vectors.tag[vectors.tag == S]); 
+	
+	// derived parameters
+	v_density = v_i_total/h_total; // record z (v_i/h_total)
+	ratio_m2h = v_total/h_total; // record m (v_total/h_total)	
+	
+	rate_m2h = biting_rate*v_density*ratio_m2h;
+	pr_m2h = 1-exp(-rate_m2h); // m2h_prob dependent on z (daily probability) 
+	
+	rate_h2m = biting_rate*h_i_total; 
+	pr_h2m = 1-exp(-rate_h2m); // pr_h2m dependent on x 
+	
+	// hosts first
+	for (h in hosts)
+	{
+		// if susceptible has probability pr_m2h of getting infected on this day
+		if (h.tag == S) 
+		{
+			if (runif(1) < pr_m2h)
+				h.tag = I;
+		}
+		
+		// otherwise if infected clear at rate h_clearance 
+		else if (h.tag == I)
+		{
+			if (runif(1) < h_clearance) 
+				h.tag = S;
+		}	
+	}
+	
+	// now mosquitoes 
+	for (v in vectors)
+	{
+		// if susceptible has probability pr_h2m of getting infected on this day
+		if (v.tag == S) 
+		{
+			if (runif(1) < pr_h2m)
+				v.tag = I;
+		}
+		
+		// otherwise if susceptible clear at rate beta (20% fixed param)
+		else if (v.tag == I)
+		{
+			if (runif(1) < v_mortality) 
+				v.tag = S;
+		}	
+	}
+	
+	
+	cat("\n\n ------Day " + day + "------\n" + "\n - Total number of hosts: " + h_total + "\n - Number of infected hosts: " + h_i_total + "\n - Number of susceptible hosts: " + h_s_total + "\n - Total number of vectors: " + v_total + "\n - Number of infected mosquitos: " + v_i_total + "\n - Number of susceptible mosquitos: " + v_s_total + "\n - Vector density (v_i/h_i): " + v_density + "\n Mosquito-to-human rate: " + rate_m2h + "\n Probability host infected: " + pr_m2h + "\n Human-to-mosquito rate: " + rate_h2m + "\n Probability mosquito infected: " + pr_h2m);
+
+	// color according to health status; S=blue, I=red
+	hosts_tags = hosts.tag;
+	hosts[hosts_tags == S].color = "lightblue";
+	hosts[hosts_tags == I].color = "red";
+	
+	vectors_tags = vectors.tag;
+	vectors[vectors_tags == S].color = "lightblue";
+	vectors[vectors_tags == I].color = "red";
+}
+
+// end at t=1825 arbitrary 5 years
+ticks all 1825 late() {
+
+}
