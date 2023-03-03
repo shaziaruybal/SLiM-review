@@ -1,0 +1,27 @@
+// Attempt to run Henden et al simulation (test 1: no hard sweep)
+
+// set up a simple neutral simulation
+initialize() {
+	// mutation rate per bp per generation
+	initializeMutationRate(1.7e-9);
+	
+	// m1 mutation type: neutral
+	initializeMutationType("m1", 0.5, "f", 0.0);
+	
+	// g1 genomic element type: uses m1 for all mutations
+	initializeGenomicElementType("g1", m1, 1.0);
+	
+	// uniform chromosome of length 2.2Mb with uniform recombination
+	initializeGenomicElement(g1, 0, 2200000);
+	// recombination rate per bp per generation
+	initializeRecombinationRate(7.4e-7);
+}
+
+// create a population of 100000 individuals (constant effective pop size for Pf)
+1 early() {
+	sim.addSubpop("p1", 100000);
+}
+
+// output samples of 10 genomes periodically, all fixed mutations at end
+400000 late() { p1.outputSample(10000); }
+400000 late() { sim.outputFixedMutations(); }
