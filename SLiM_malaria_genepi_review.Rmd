@@ -226,7 +226,7 @@ Both humans and mosquitoes can transition from a susceptible to infected state a
 Table 1. Simulation parameters for Ross-Macdonald implementation in SLiM
 
 | **Parameter** | **Description**                    | **Value**                    | **Notes**                                                                                        |
-|:-----------------|:-------------------|:---------------|:-----------------|
+|:-----------------|:-------------------|:-----------------|:-----------------|
 | $N_h$         | Number of human hosts              | 1000, 10000, 100000, 1000000 |                                                                                                  |
 | $N_v$         | Number of mosquito vectors         | 50000, 500000, 5000000       |                                                                                                  |
 | $ma$          | **Human biting rate**              | **0.1**                      | This is equivalent to a mosquito biting every 10 days                                            |
@@ -275,11 +275,11 @@ profile_stats <- data.frame(test= c("H=1e3, M=5e4", "H=1e4, M=5e5", "H=1e5, M=5e
                                       50, 50, 50),
                             cpu_time = c(19.12, 270.03, 2440.64, 6544.94,
                                          38.36, 501.69, 5210.31,
-                                         117.17, 1188.88, NA,
+                                         117.17, 1188.88, 22804.75,
                                          200.18, 2715.99, 41697.93),
                             avg_memory = c(29.02, 192.06, 1800, 2100,
                                            29.03, 192.11, 1800,
-                                           29.03, 192.14, NA,
+                                           29.03, 192.14, 1800,
                                            29.03, 192.14, 1800))
 ```
 
@@ -384,6 +384,6 @@ When varying the mosquito population sizes we found similar trends as for increa
 
 ## Conclusions
 
-Although SLiM is a powerful forward genetic simulation tools with a extensive potential applications, unfortunately it does not seem appropriate for our use case. The main appeal for integration with the SIMPLEGEN pipeline was the ability to use tree-sequence recording, however, this functionality is not available in the multi-species model we would require for our simulations. In addition, given SLiM was developed with other genetic applications in mind, it is not computationally efficient for epidemiological models such as a vector-host model. Future considerations for SIMPLEGEN will be to integrate conversion of the transmission record into a `tskit`-appropriate `.tree` structure for more efficient storage and downstream use of `msprime` and `tskit` functionalities such as genetic statistic calculations.
+Although SLiM is a powerful forward genetic simulation tools with extensive potential applications, unfortunately it does not seem appropriate for our use case. The main appeal for integration with the SIMPLEGEN pipeline was the ability to use tree-sequence recording, however, this functionality is not available in the multi-species model we would require for our simulations. In addition, given SLiM was developed with other genetic applications in mind, it is not computationally efficient for epidemiological models such as a vector-host model. Future considerations for SIMPLEGEN will be to integrate conversion of the transmission record into a `tskit`-appropriate `.tree` structure for more efficient storage and downstream use of `msprime` and `tskit` functionalities such as genetic statistic calculations.
 
 ## References
