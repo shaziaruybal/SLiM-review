@@ -30,7 +30,7 @@ library(plotly)
 
 ## Background
 
-This notebook documents the review of the forward genetic simulation tool [SLiM](https://messerlab.org/slim/) [@haller2019; @haller2016; @messer2013; @haller2019]. We are testing whether this tool can be used as a part of the [SIMPLEGEN](mrc-ide.github.io/SIMPLEGEN) pipeline. Some key advantages of SLiM that would be beneficial for our purposes is the ability to simulate haploid genomes and because of its well-integrated `tskit` tree structure format for genetic data, which is already debugged and working seamlessly with simulation output from SLiM and i. However we will test whether SLiM is suitable for large population sizes and to build an appropriate malaria model (eg Ross-MacDonald). *(Potentially other things to test as well)*
+This notebook documents the review of the forward genetic simulation tool [SLiM](https://messerlab.org/slim/) [@haller2019; @haller2016; @messer2013; @haller2019]. We are testing whether this tool can be used as a part of the [SIMPLEGEN](mrc-ide.github.io/SIMPLEGEN) pipeline. Some key advantages of SLiM that would be beneficial for our purposes is the ability to simulate haploid genomes and because of its well-integrated `tskit` tree structure format for genetic data, which is already debugged and working seamlessly with simulation output from SLiM. However we will test whether SLiM is suitable for large population sizes and to build an appropriate malaria model (eg Ross-MacDonald). *(Potentially other things to test as well)*
 
 #### **Main aims:**
 
@@ -45,7 +45,7 @@ The majority of papers citing SLiM use SLiM for simulations of human genomics be
 
 #### *Outputs from SLiM*
 
-SLiM allows several output formats and also supports custom scripting not only for model specifications but also for the model output (eg using `paste()` or `cat()` to build output data frames).
+SLiM allows several output formats and also supports custom scripting using the Eidos language. This is possible not only for model specifications/customization but also for the model output (eg using `paste()` or `cat()` to build output data frames).
 
 Some of the output possibilities in SLiM include (but not limited to):
 
@@ -55,7 +55,7 @@ Some of the output possibilities in SLiM include (but not limited to):
 
 -   `outputMutations()` or `outputFixedMutations()`: information on explicitly tracked or fixed mutations, respectively
 
--   `outputPedigree()`: pedigree tracking can be turned on and the simulation will keep track of every individual, their parents, grandparents etc (note ). Pedigree output requires custom Eidos scripting (as far as I can tell).
+-   `outputPedigree()`: pedigree tracking can be turned on and the simulation will keep track of every individual, their parents, grandparents etc. Pedigree output requires custom Eidos scripting (as far as I can tell).
 
 -   `outputTreeSeq()`: output tree-sequence recording in `tskit`-format `.trees` (note much more efficient and more compact than eg VCF). Worth noting that `msprime` can write vcf files from `.trees`
 
@@ -226,7 +226,7 @@ Both humans and mosquitoes can transition from a susceptible to infected state a
 Table 1. Simulation parameters for Ross-Macdonald implementation in SLiM
 
 | **Parameter** | **Description**                    | **Value**                    | **Notes**                                                                                        |
-|:-----------------|:-------------------|:-----------------|:-----------------|
+|:-----------------|:------------------|:-----------------|:-----------------|
 | $N_h$         | Number of human hosts              | 1000, 10000, 100000, 1000000 |                                                                                                  |
 | $N_v$         | Number of mosquito vectors         | 50000, 500000, 5000000       |                                                                                                  |
 | $ma$          | **Human biting rate**              | **0.1**                      | This is equivalent to a mosquito biting every 10 days                                            |
@@ -255,8 +255,6 @@ By using the clock feature on the SLiM GUI we can profile each simulation run, w
 
 ```{r create df}
 
-# simulation for 1e5 for 25 years still running (computer crashed! had to start over...) insert value when done
-
 profile_stats <- data.frame(test= c("H=1e3, M=5e4", "H=1e4, M=5e5", "H=1e5, M=5e6", "H=1e6, M=5e6",
                                     "H=1e3, M=5e4", "H=1e4, M=5e5", "H=1e5, M=5e6",
                                     "H=1e3, M=5e4", "H=1e4, M=5e5", "H=1e5, M=5e6",
@@ -283,7 +281,7 @@ profile_stats <- data.frame(test= c("H=1e3, M=5e4", "H=1e4, M=5e5", "H=1e5, M=5e
                                            29.03, 192.14, 1800))
 ```
 
-We found that the simulation run times were extremely slow, especially for human population sizes above 1000 (Figure 1). Even for 5 year simulations the CPU time required was between 4.5 to 109 minutes when the human population size was 10,000 up to the 1,000,000 value tested. The average memory usage was consistent regardless of simulation run time, but increased by an order of magnitude in line with increases in human population size (Figure 1).
+We found that the simulation run times were extremely slow, especially for human population sizes above 1000 (Figure 1). Even for 5 year simulations the CPU time required was between 4.5 to 109 minutes when the human population size was 10,000 up to the 1,000,000 value tested. The average memory usage was consistent regardless of simulation run time, but increased by an order of magnitude in line with increases in human population size (Figure 1, see Figure 2 for interactive plot). When varying the mosquito population sizes we found similar trends as for increases in human population sizes (Figure 3).
 
 ```{r profiling-results, fig.cap="Figure 1. The profiling results showing the CPU times and memory usage for simulation runs with varying human population sizes"}
 (profile_stats %>% 
@@ -316,7 +314,7 @@ We found that the simulation run times were extremely slow, especially for human
   plot_layout(guides = "collect")
 ```
 
-Below, the interactive plot shows CPU time and by hovering the mouse you can see the exact values for each run.
+*Below, the interactive plot shows CPU time and by hovering the mouse you can see the exact values for each run.*
 
 ```{r profiling-cpu, fig.width=6, fig.height=5, fig.cap="Figure 2. An interactive plot showing the profiling results for simulation runs with varying human population sizes"}
 ggplotly(profile_stats %>% 
@@ -347,8 +345,6 @@ ggplotly(profile_stats %>%
        title = "Simple Ross-Macdonald model") +
   theme_minimal())
 ```
-
-When varying the mosquito population sizes we found similar trends as for increases in human population sizes (Figure 2).
 
 ```{r profiling-results-mosq, fig.cap="Figure 3. The profiling results showing the CPU times and memory usage for simulation runs with varying mosquito population sizes"}
 (profile_stats %>% 
